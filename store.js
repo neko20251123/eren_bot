@@ -1,31 +1,67 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 
-const filePath = path.join(__dirname, "data.json");
+const DATA_PATH = path.join(__dirname, "data.json");
 
+let cache = {};
+
+// 起動時ロード
 function load() {
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify({}));
+  try {
+    if (!fs.existsSync(DATA_PATH)) {
+      fs.writeFileSync(DATA_PATH, JSON.stringify({}, null, 2), "utf8");
+      cache = {};
+      return;
+    }
+    const raw = fs.readFileSync(DATA_PATH, "utf8");
+    cache = raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    console.error("store.load error:", e);
+    cache = {};
   }
-  return JSON.parse(fs.readFileSync(filePath));
 }
 
-function save(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+// 安全に保存（同期で確実に書く）
+function flush() {
+  try {
+    fs.writeFileSync(DATA_PATH, JSON.stringify(cache, null, 2), "utf8");
+  } catch (e) {
+    console.error("store.flush error:", e);
+  }
 }
 
+// public
 function getIntro(userId) {
-  const data = load();
-  return data[userId] || null;
+  const v = cache[String(userId)];
+  if (!v) return null;
+
+  // 将来拡張してオブジェクト形式にしても崩れないように
+  if (typeof v === "string") return v;
+  if (typeof v?.intro === "string") return v.intro;
+
+  return null;
 }
 
-function setIntro(userId, content) {
-  const data = load();
-  data[userId] = content;
-  save(data);
+async function saveIntro(userId, introText) {
+  const key = String(userId);
+  const text = String(introText ?? "").trim();
+
+  // 空なら保存しない（事故防止）
+  if (!text) return false;
+
+  cache[key] = text;
+  flush();
+  return true;
 }
+
+function count() {
+  return Object.keys(cache).length;
+}
+
+load();
 
 module.exports = {
   getIntro,
-  setIntro,
+  saveIntro,
+  count,
 };

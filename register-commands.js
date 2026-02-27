@@ -5,23 +5,27 @@ const commands = [
   new SlashCommandBuilder()
     .setName("eren")
     .setDescription("エレンの自己紹介システム")
-    .addSubcommand(sub =>
+    .addSubcommand((sub) =>
       sub
         .setName("list")
-        .setDescription("同じVCにいるメンバーの自己紹介を一覧表示します（表示は本人のみ・ログには残りません）")
+        .setDescription(
+          "同じVCにいるメンバーの自己紹介を一覧表示します（表示は本人のみ・ログには残りません）"
+        )
     )
-    .addSubcommand(sub =>
+    .addSubcommand((sub) =>
       sub
         .setName("show")
-        .setDescription("指定ユーザーの自己紹介を表示します（表示は本人のみ・ログには残りません）")
-        .addUserOption(option =>
+        .setDescription(
+          "指定ユーザーの自己紹介を表示します（表示は本人のみ・ログには残りません）"
+        )
+        .addUserOption((option) =>
           option
-            .setName("target")
+            .setName("target") // ✅ index.js と一致
             .setDescription("表示したいユーザー")
             .setRequired(true)
         )
-    )
-].map(cmd => cmd.toJSON());
+    ),
+].map((cmd) => cmd.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 
@@ -29,10 +33,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
   try {
     console.log("⏳ コマンド登録中...");
     await rest.put(
-      Routes.applicationGuildCommands(
-        process.env.CLIENT_ID,
-        process.env.GUILD_ID
-      ),
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
       { body: commands }
     );
     console.log("✅ コマンド登録完了");
