@@ -165,36 +165,58 @@ client.on("interactionCreate", async (interaction) => {
     // ------------------------------
     // /eren list
     // ------------------------------
-    if (sub === "list") {
-      if (members.length === 0) {
-        return interaction.reply({
-          content:
-            "⚠️ このVCにはユーザーがいないみたいだ。\n\n" +
-            "🛈 この表示はあなただけに見えます（ログには残りません）",
-          ...EPHEMERAL,
-        });
-      }
-
-      const blocks = members.map((m) => {
-        const name = displayNameOf(m);
-        const intro = store.getIntro(m.id);
-
-        if (!intro) return `👤 ${name}\n→ 自己紹介未登録`;
-
-        // ✅ listでも「自己紹介を展開」する（ただし長文は短縮）
-        const short = shorten(intro, LIST_INTRO_MAX);
-        return `👤 ${name}\n→ ${short}`;
+    // /eren list
+  if (sub === "list") {
+    if (members.length === 0) {
+      return interaction.reply({
+        content:
+          "⚠️ このVCにはユーザーがいないみたいだ。\n\n" +
+          "🛈 この表示はあなただけに見えます",
+        ...EPHEMERAL,
       });
-
-      const text =
-        `🟥 エレン\n\n` +
-        `現在このVCにいる者たちだ。\n\n` +
-        blocks.join("\n\n") +
-        `\n\n🛈 この表示はあなただけに見えます（ログには残りません）`;
-
-      // 長文なら分割
-      return replyChunkedEphemeral(interaction, text);
     }
+
+    // 1人ずつ「コードブロック」で表示
+    const chunks = [];
+    let current = "🟥 エレン\n\n現在このVCにいる者たちだ。\n\n";
+
+    for (const m of members) {
+      const name = displayNameOf(m);
+      const intro = store.getIntro?.(m.id);
+
+      const block = intro
+        ? `👤 ${name}\n\`\`\`txt\n${intro}\n\`\`\`\n`
+        : `👤 ${name}\n\`\`\`txt\n（自己紹介未登録）\n\`\`\`\n`;
+
+      // 2000文字を超えそうなら分割
+      if ((current + block).length > 1800) {
+        chunks.push(current);
+        current = "";
+      }
+      current += block;
+    }
+
+    current += "\n🛈 この表示はあなただけに見えます";
+    chunks.push(current);
+
+    // まず1通目を返信
+    await interaction.reply({
+      content: chunks[0],
+      ...EPHEMERAL,
+      allowedMentions: { parse: [] },
+    });
+
+    // 残りがあれば followUp（ephemeral維持）
+    for (let i = 1; i < chunks.length; i++) {
+      await interaction.followUp({
+        content: chunks[i],
+        ...EPHEMERAL,
+        allowedMentions: { parse: [] },
+      });
+    }
+
+    return;
+  }
 
     // ------------------------------
     // /eren show target:@user
